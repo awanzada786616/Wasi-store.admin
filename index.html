@@ -3,88 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Wasi Admin Panel</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #f1f1f1;
-      padding: 20px;
-    }
-    .order {
-      background: white;
-      padding: 15px;
-      margin-bottom: 10px;
-      border-radius: 10px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-    }
-    .order h3 {
-      margin: 0;
-      color: #2c5364;
-    }
-    .order button {
-      margin-top: 10px;
-      padding: 8px 12px;
-      background: #2c5364;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    .order button:hover {
-      background: #203a43;
-    }
-  </style>
+  <title>Admin Panel</title>
 </head>
-<body>
+<body style="font-family:sans-serif; padding:20px; background:#eaeaea">
+  <h2>📋 Admin Panel - Wasi Orders</h2>
+  <div id="orders"></div>
 
-<h2>📋 Wasi Orders - Admin Panel</h2>
-<div id="orders"></div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
-<script type="module">
-  import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyDxxxxxxxxxxxx",
+      authDomain: "shadow-predictions.firebaseapp.com",
+      databaseURL: "https://shadow-predictions-default-rtdb.firebaseio.com",
+      projectId: "shadow-predictions",
+      storageBucket: "shadow-predictions.appspot.com",
+      messagingSenderId: "xxxxxx",
+      appId: "1:xxxxxx:web:xxxxxx"
+    };
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDxxxxxxxxxxxx",
-    authDomain: "shadow-predictions.firebaseapp.com",
-    databaseURL: "https://shadow-predictions-default-rtdb.firebaseio.com",
-    projectId: "shadow-predictions",
-    storageBucket: "shadow-predictions.appspot.com",
-    messagingSenderId: "xxxxxx",
-    appId: "1:xxxxxx:web:xxxxxx"
-  };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const ordersRef = ref(db, "orders");
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const ordersRef = ref(db, 'orders');
+    const ordersDiv = document.getElementById("orders");
 
-  const ordersDiv = document.getElementById('orders');
+    onValue(ordersRef, (snapshot) => {
+      ordersDiv.innerHTML = "";
+      snapshot.forEach((child) => {
+        const data = child.val();
+        const key = child.key;
 
-  onValue(ordersRef, (snapshot) => {
-    ordersDiv.innerHTML = "";
-    snapshot.forEach(child => {
-      const order = child.val();
-      const key = child.key;
+        const orderEl = document.createElement("div");
+        orderEl.style = "background:#fff; margin:10px 0; padding:15px; border-radius:8px; box-shadow:0 0 8px rgba(0,0,0,0.1)";
 
-      const div = document.createElement("div");
-      div.className = "order";
-      div.innerHTML = `
-        <h3>${order.name}</h3>
-        📞 ${order.phone}<br>
-        🏠 ${order.address}<br>
-        📍 ${order.city}, ${order.state}, ${order.country} - ${order.postal}<br>
-        🔁 Status: ${order.status}<br><br>
-        <a href="https://wa.me/92${order.phone.replace(/^0/, '')}" target="_blank">📱 WhatsApp</a><br>
-        <button onclick="markComplete('${key}')">✅ Mark as Completed</button>
-      `;
-      ordersDiv.appendChild(div);
+        orderEl.innerHTML = `
+          <strong>${data.name}</strong><br>
+          📞 ${data.phone}<br>
+          🏠 ${data.address}, ${data.city}, ${data.state}, ${data.postal}, ${data.country}<br>
+          ⏱ ${new Date(data.timestamp).toLocaleString()}<br>
+          🔁 Status: <strong>${data.status}</strong><br><br>
+          <a href="https://wa.me/92${data.phone.replace(/^0/, '')}" target="_blank">📱 Contact via WhatsApp</a><br><br>
+          <button onclick="markAsCompleted('${key}')">✅ Mark as Completed</button>
+        `;
+
+        ordersDiv.appendChild(orderEl);
+      });
     });
-  });
 
-  window.markComplete = (key) => {
-    update(ref(db, 'orders/' + key), { status: 'completed' });
-  };
-</script>
-
+    window.markAsCompleted = (key) => {
+      update(ref(db, 'orders/' + key), { status: "completed" });
+    };
+  </script>
 </body>
 </html>
