@@ -1,50 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wasi Admin Panel</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f1f1f1;
+      padding: 20px;
+    }
+    .order {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    .order h3 {
+      margin: 0;
+      color: #2c5364;
+    }
+    .order button {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: #2c5364;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .order button:hover {
+      background: #203a43;
+    }
+  </style>
 </head>
 <body>
-  <h2>📋 Wasi Orders - Admin Panel</h2>
-  <div id="ordersList"></div>
 
-  <script type="module" src="firebase.js"></script>
-  <script type="module">
-    const db = window.firebaseDB;
-    const ref = window.firebaseRef;
-    const onValue = window.firebaseOnValue;
-    const update = window.firebaseUpdate;
+<h2>📋 Wasi Orders - Admin Panel</h2>
+<div id="orders"></div>
 
-    const ordersList = document.getElementById('ordersList');
+<script type="module">
+  import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
 
-    onValue(ref(db, 'orders'), (snapshot) => {
-      ordersList.innerHTML = '';
-      snapshot.forEach(order => {
-        const data = order.val();
-        const key = order.key;
+  const firebaseConfig = {
+    apiKey: "AIzaSyDxxxxxxxxxxxx",
+    authDomain: "shadow-predictions.firebaseapp.com",
+    databaseURL: "https://shadow-predictions-default-rtdb.firebaseio.com",
+    projectId: "shadow-predictions",
+    storageBucket: "shadow-predictions.appspot.com",
+    messagingSenderId: "xxxxxx",
+    appId: "1:xxxxxx:web:xxxxxx"
+  };
 
-        const div = document.createElement('div');
-        div.style.border = '1px solid gray';
-        div.style.margin = '10px';
-        div.style.padding = '10px';
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const ordersRef = ref(db, 'orders');
 
-        div.innerHTML = `
-          <strong>Name:</strong> ${data.name}<br>
-          <strong>Phone:</strong> ${data.phone}<br>
-          <strong>City:</strong> ${data.city}<br>
-          <strong>Address:</strong> ${data.address}<br>
-          <strong>Status:</strong> ${data.status}<br><br>
-          <a href="https://wa.me/92${data.phone.replace(/^0/, '')}" target="_blank">📞 Contact on WhatsApp</a><br><br>
-          <button onclick="markDone('${key}')">✅ Mark as Completed</button>
-        `;
-        ordersList.appendChild(div);
-      });
-    });
+  const ordersDiv = document.getElementById('orders');
 
-    window.markDone = async function(key) {
-      await update(ref(db, 'orders/' + key), { status: 'completed' });
-    };
-  </script>
+  onValue(ordersRef, (snapshot) => {
+    ordersDiv.innerHTML = "";
+    snapshot.forEach(child => {
+      const order = child.val();
+      const key = child.key;
+
+      const div = document.createElement("div");
+      div.className = "order";
+      div.innerHTML = `
+        <h3>${order.name}</h3>
+        📞 ${order.phone}<br>
+        🏠 ${order.address}<br>
+        📍 ${order.city}, ${order.state}, ${order.country} - ${order.postal}<br>
+        🔁 Status: ${order.status}<br><br>
+        <a href="https://wa.me/92${order.phone.replace(/^0/, '')}" target="_blank">📱 WhatsApp</a><br>
+        <button onclick="markComplete('${key}')">✅ Mark as Completed</button>
+      `;
+      ordersDiv.appendChild(div);
+    });
+  });
+
+  window.markComplete = (key) => {
+    update(ref(db, 'orders/' + key), { status: 'completed' });
+  };
+</script>
+
 </body>
 </html>
